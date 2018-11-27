@@ -13,6 +13,7 @@ using namespace amrex;
 
 #if BL_SPACEDIM > 1
 #include <AMReX_EB2.H>
+#include <AMReX_EB2_IF.H>
 #include <AMReX_EB2_IF_Union.H>
 #include <AMReX_EB2_IF_Intersection.H>
 #include <AMReX_EB2_IF_Complement.H>
@@ -20,11 +21,14 @@ using namespace amrex;
 #include <AMReX_EB2_IF_Translation.H>
 #include <AMReX_EB2_IF_Lathe.H>
 #include <AMReX_EB2_IF_Box.H>
+#include <AMREX_EB2_IF_Rotation.H>
 #include <AMReX_EB2_IF_Cylinder.H>
 #include <AMReX_EB2_IF_Ellipsoid.H>
 #include <AMReX_EB2_IF_Sphere.H>
+#include <AMReX_EB2_IF_Spline.H>
 #include <AMReX_EB2_IF_Plane.H>
 #include <AMReX_EB2_GeometryShop.H>
+#include <AMReX_distFcnElement.H>
 #endif
 
 #include "PeleC_init_eb_F.H"
@@ -42,6 +46,48 @@ PeleC::init_eb (const Geometry& level_geom, const BoxArray& ba, const Distributi
   initialize_eb2_structs();
 
 }
+
+void reentrant_profile(std::vector<amrex::RealVect> &points) {
+  amrex::RealVect p;
+
+  p = amrex::RealVect(D_DECL(36.193, 7.8583, 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(35.924, 7.7881, 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(35.713, 7.5773 , 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(35.643, 7.3083 , 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(35.3, 7.0281 , 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(35.421, 6.241, 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(34.82, 5.686 , 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(30.539, 3.5043, 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(29.677, 2.6577 , 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(29.457, 1.47 , 0.0));
+  points.push_back(p);
+  // p = amrex::RealVect(D_DECL(29.38, -1.1038 , 0.0));
+  // points.push_back(p);
+  // p = amrex::RealVect(D_DECL(29.3, -2.7262 , 0.0));
+  // points.push_back(p);
+  // p = amrex::RealVect(D_DECL(29.273, -4.3428, 0.0));
+  // points.push_back(p);
+  p = amrex::RealVect(D_DECL(28.364, -5.7632, 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(27.151, -6.8407, 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(25.694, -7.5555, 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(24.035, -7.8586 , 0.0));
+  points.push_back(p);
+  p = amrex::RealVect(D_DECL(22.358, -7.6902 , 0.0));
+  points.push_back(p);
+}
+
 
 #if BL_SPACEDIM > 1
 
@@ -440,6 +486,40 @@ initialize_EB2 (const Geometry& geom, const int required_level, const int max_le
     auto pr = EB2::translate(EB2::lathe(polys), {lenx*0.5, leny*0.5, 0.});
         
     auto gshop = EB2::makeShop(pr);
+    EB2::Build(gshop, geom, max_coarsening_level, max_coarsening_level);
+  } else if (geom_type == "Piston-Cylinder") {
+
+    EB2::SplineIF Piston;
+
+    std::vector<amrex::RealVect> splpts;
+    reentrant_profile(splpts);
+    Piston.addSplineElement(splpts);
+
+    amrex::RealVect p;
+    std::vector<amrex::RealVect> lnpts;
+
+    p = amrex::RealVect(D_DECL(22.358, -7.6902 , 0.0));
+    lnpts.push_back(p);
+    p = amrex::RealVect(D_DECL(1.9934, 3.464, 0.0));
+    lnpts.push_back(p);
+    p = amrex::RealVect(D_DECL(0.0, 3.464, 0.0));
+    lnpts.push_back(p);
+    Piston.addLineElement(lnpts);
+    lnpts.clear();
+    
+    p = amrex::RealVect(D_DECL(49.0, 7.8583,  0.0));
+    lnpts.push_back(p);
+    p = amrex::RealVect(D_DECL(36.193, 7.8583, 0.0));
+    lnpts.push_back(p);
+    Piston.addLineElement(lnpts);
+    lnpts.clear();
+
+    EB2::CylinderIF cylinder(48.0, 70.0, 2, {0.0, 0.0, -10.0}, false);
+
+    auto revolvePiston  = EB2::lathe(Piston);
+    auto PistonComplement = EB2::makeComplement(revolvePiston);
+    auto PistonCylinder = EB2::makeIntersection(PistonComplement, cylinder);
+    auto gshop = EB2::makeShop(PistonCylinder);
     EB2::Build(gshop, geom, max_coarsening_level, max_coarsening_level);
   }
 #endif
