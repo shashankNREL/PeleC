@@ -517,7 +517,7 @@ initialize_EB2 (const Geometry& geom, const int required_level, const int max_le
 
     auto revolvePiston  = EB2::lathe(Piston);
     //auto PistonComplement = EB2::makeComplement(revolvePiston);
-    auto PistonCylinder = EB2::makeIntersection(PistonComplement, cylinder);
+    auto PistonCylinder = EB2::makeIntersection(revolvePiston, cylinder);
     auto gshop = EB2::makeShop(PistonCylinder);
     EB2::Build(gshop, geom, max_coarsening_level, max_coarsening_level);
   }
