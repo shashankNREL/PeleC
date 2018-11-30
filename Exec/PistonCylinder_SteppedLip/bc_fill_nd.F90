@@ -104,9 +104,9 @@ contains
           if ( (bc(3,1,1).eq.EXT_DIR).and. adv_lo(3).lt.domlo(3)) then
              do i = adv_lo(1), adv_hi(1)
                 x(1) = xlo(1) + delta(1)*(dble(i-adv_lo(1)) + 0.5d0)
-                do j = adv_lo(2), domlo(2)-1
+                do j = adv_lo(2), adv_hi(2)
                    x(2) = xlo(2) + delta(2)*(dble(j-adv_lo(2)) + 0.5d0)
-                   do k = adv_lo(3), adv_hi(3)
+                   do k = adv_lo(3), domlo(3)-1
                       x(3) = xlo(3) + delta(3)*(dble(k-adv_lo(3)) + 0.5d0)
                       call bcnormal(x,adv(i,j,domlo(3),:),adv(i,j,k,:),3,+1,rho_only)
                    end do
@@ -118,9 +118,9 @@ contains
           if ( (bc(3,2,1).eq.EXT_DIR).and. adv_hi(3).gt.domhi(3)) then
              do i = adv_lo(1), adv_hi(1)
                 x(1) = xlo(1) + delta(1)*(dble(i-adv_lo(1)) + 0.5d0)
-                do j = domhi(2)+1, adv_hi(2)
+                do j = adv_lo(2), adv_hi(2)
                    x(2) = xlo(2) + delta(2)*(dble(j-adv_lo(2)) + 0.5d0)
-                   do k = adv_lo(3), adv_hi(3)
+                   do k = domhi(3)+1, adv_hi(3)
                       x(3) = xlo(3) + delta(3)*(dble(k-adv_lo(3)) + 0.5d0)
                       call bcnormal(x,adv(i,j,domhi(3),:),adv(i,j,k,:),3,-1,rho_only)
                    end do
@@ -226,9 +226,9 @@ contains
           if ( (bc(3,1,1).eq.EXT_DIR).and.adv_lo(3).lt.domlo(3)) then
              do i = adv_lo(1), adv_hi(1)
                 x(1) = xlo(1) + delta(1)*(dble(i-adv_lo(1)) + 0.5d0)
-                do j = adv_lo(2), domlo(2)-1
+                do j = adv_lo(2), adv_hi(2)
                    x(2) = xlo(2) + delta(2)*(dble(j-adv_lo(2)) + 0.5d0)
-                   do k = adv_lo(3), adv_hi(3)
+                   do k = adv_lo(3), domlo(3)-1
                       x(3) = xlo(3) + delta(3)*(dble(k-adv_lo(3)) + 0.5d0)
                       call bcnormal(x,adv(i,j,domlo(3)),adv(i,j,k),3,+1,rho_only)
                    end do
@@ -240,9 +240,9 @@ contains
           if ( (bc(3,2,1).eq.EXT_DIR).and.adv_hi(3).gt.domhi(3)) then
              do i = adv_lo(1), adv_hi(1)
                 x(1) = xlo(1) + delta(1)*(dble(i-adv_lo(1)) + 0.5d0)
-                do j = domhi(2)+1, adv_hi(2)
+                do j = adv_lo(2), adv_hi(2)
                    x(2) = xlo(2) + delta(2)*(dble(j-adv_lo(2)) + 0.5d0)
-                   do k = adv_lo(3), adv_hi(3)
+                   do k = domhi(3)+1, adv_hi(3)
                       x(3) = xlo(3) + delta(3)*(dble(k-adv_lo(3)) + 0.5d0)
                       call bcnormal(x,adv(i,j,domhi(3)),adv(i,j,k),3,-1,rho_only)
                    end do
@@ -272,7 +272,7 @@ contains
     integer :: dir,sgn
     type (eos_t) :: eos_state_ext,eos_state_int
 
-    double precision :: phi_angle,hole_cx,hole_cz,dphi_angle
+    double precision :: phi_angle,hole_cx,hole_cy,dphi_angle
     double precision :: vx_in, vz_in, vr_in, vy_in
 
     integer :: nh
@@ -296,7 +296,7 @@ contains
     call build(eos_state_int)
 
 
-    !I am assuming this boundary is the top XZ plane
+    !I am assuming this boundary is the top XY plane
     ! and in-plane angle is measured from X axis
     dphi_angle=2.d0*M_PI/nholes
 
@@ -304,10 +304,11 @@ contains
 
         phi_angle = nh*dphi_angle
         hole_cx = centx + r_circ*cos(phi_angle)
-        hole_cz = centz + r_circ*sin(phi_angle)
+        hole_cy = centz + r_circ*sin(phi_angle)
 
-        if( ((x(1)-hole_cx)**2+(x(3)-hole_cz)**2) < r_hole**2) then
-
+        if( ((x(1)-hole_cx)**2+(x(2)-hole_cy)**2) < r_hole**2) then
+           
+           
                 eos_state_int % rho      = u_int(URHO)
                 eos_state_int % T        = u_int(UTEMP)
                 eos_state_int % massfrac = u_int(UFS:UFS+nspec-1)/u_int(URHO)
@@ -324,15 +325,15 @@ contains
                 call eos_rp(eos_state_ext)
 
                 !find velocity vector
-                vy_in = -vel_jet*cos(cone_angle*M_PI/180.d0) !top XZ plane, remember!
+                vz_in = -vel_jet*cos(cone_angle*M_PI/180.d0) !top XY plane
                 vr_in =  vel_jet*sin(cone_angle*M_PI/180.d0)
                 vx_in = vr_in*cos(phi_angle)
-                vz_in = vr_in*sin(phi_angle)
+                vy_in = vr_in*sin(phi_angle)
 
                 if(rho_only .eqv. .true.) then
                         u_ext(URHO)   = eos_state_ext % rho
                 else
-                        u_ext(URHO)   = eos_state_ext % rho
+                   u_ext(URHO)   = eos_state_ext % rho
                         u_ext(UMX)    = eos_state_ext % rho * vx_in
                         u_ext(UMY)    = eos_state_ext % rho * vy_in
                         u_ext(UMZ)    = eos_state_ext % rho * vz_in
@@ -349,6 +350,7 @@ contains
     call destroy(eos_state_int)
     call destroy(eos_state_ext)
 
+    
   end subroutine bcnormal
   subroutine pc_reactfill(adv,adv_lo,adv_hi,domlo,domhi,delta,xlo,time,bc) &
        bind(C, name="pc_reactfill")
